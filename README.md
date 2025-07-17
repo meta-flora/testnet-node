@@ -11,6 +11,15 @@ chmod +x join.sh
 ./join.sh <MONIKER>
 ````
 
+## Join Network with 1 line
+
+You can join the Flora testnet in one command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh \
+  | bash -s -- <your-moniker>
+  ```
+
 * **MONIKER** (optional) — your node’s name (defaults to `floranode`)
 
 ## What it does
