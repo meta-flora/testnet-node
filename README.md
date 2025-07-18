@@ -9,7 +9,7 @@ git clone https://github.com/meta-flora/testnet-node.git
 cd testnet-node
 chmod +x join.sh
 ./join.sh <MONIKER>
-````
+```
 
 ## Join Network with 1 line
 
@@ -18,9 +18,27 @@ You can join the Flora testnet in one command:
 ```bash
 curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh \
   | bash -s -- <your-moniker>
-  ```
+```
 
-* **MONIKER** (optional) — your node’s name (defaults to `floranode`)
+> **MONIKER** (optional) — your node’s name (defaults to `floranode`)
+
+## Join Network with Docker
+
+You can join the Flora testnet in one command via Docker without cloning:
+
+```bash
+docker run --rm -it $(docker build -q https://github.com/meta-flora/testnet-node.git#main) <your-moniker>
+```
+
+Or, if you’ve already built or pulled the image:
+
+```bash
+# Build once from GitHub
+docker build -t ggingerbreadman/join https://github.com/meta-flora/testnet-node.git#main
+
+# Run with your moniker
+docker run --rm -it ggingerbreadman/join <your-moniker>
+```
 
 ## What it does
 

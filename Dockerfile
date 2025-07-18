@@ -1,24 +1,22 @@
 # syntax=docker/dockerfile:1
 
+# Base image
 FROM --platform=linux/amd64 ubuntu:22.04
 
+# Disable interactive prompts
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install required packages
+# Install curl, bash, and sudo for fetching and running the join script
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
          curl bash ca-certificates sudo \
     && rm -rf /var/lib/apt/lists/*
 
+# Set working directory
 WORKDIR /app
 
-# Create entrypoint wrapper that fetches and runs the join script, forwarding all args
-RUN printf '%s\n' \
-    '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh | bash -s -- "$@"' \
-    > entrypoint.sh \
-    && chmod +x entrypoint.sh
+# ENTRYPOINT: fetch the latest join.sh and pass all container args as moniker
+ENTRYPOINT ["bash", "-lc", "curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh | bash -s -- $@"]
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Default to showing help if no args provided
 CMD ["--help"]
