@@ -2,35 +2,75 @@
 set -euo pipefail
 
 ####################################
-# 📦 Install dependencies (Go, jq, git, build-essential)
+# 🖥️ Windows check — if running under Git Bash/Cygwin on Windows,
+# re-invoke this same script inside WSL and exit
 ####################################
-echo "=== Installing system dependencies ==="
-sudo apt update
-sudo apt install -y build-essential curl git jq
+if command -v uname >/dev/null 2>&1; then
+  UNAME_OP=$(uname -o 2>/dev/null || true)
+  case "$UNAME_OP" in
+    Msys*|Cygwin*)
+      echo "▶ Detected Windows/Git Bash environment; re-launching under WSL…"
+      # Convert this script’s Windows-style path to a WSL path
+      WSL_SCRIPT=$(wsl wslpath -u "$PWD/$0" | tr -d '\r')
+      # Gather any arguments
+      ARGS=("$@")
+      # Build the WSL command
+      CMD="\"$WSL_SCRIPT\""
+      for a in "${ARGS[@]}"; do
+        CMD+=" \"$a\""
+      done
+      # Run under WSL bash
+      wsl bash -lc "$CMD"
+      exit
+      ;;
+  esac
+fi
 
-# Clean up old Go installation first
-sudo rm -rf /usr/local/go
-rm -f "$HOME/go1.21.6.linux-amd64.tar.gz"
+####################################
+# 📦 Install dependencies (only on Linux)
+####################################
+OS_NAME=$(uname -s)
+if [[ "$OS_NAME" == "Linux" ]]; then
+  echo "=== Installing system dependencies ==="
+  sudo apt update
+  sudo apt install -y build-essential curl git jq
+elif [[ "$OS_NAME" == "Darwin" ]]; then
+  echo "▶ Detected macOS; skipping apt. Ensure deps via Homebrew:"
+  echo "    brew install git jq go"
+else
+  echo "▶ Detected $OS_NAME; skipping package install."
+fi
 
-# Install Go (version 1.21.6)
-if ! command -v go &> /dev/null; then
-  echo "=== Installing Go ==="
-  curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
-  sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+####################################
+# Install Go (version 1.21.6) on Linux, skip on macOS
+####################################
+if [[ "$OS_NAME" == "Linux" ]]; then
+  if ! command -v go &> /dev/null; then
+    echo "=== Installing Go ==="
+    curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+    sudo rm -rf /usr/local/go
+    sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
 
-  # Add Go to PATH immediately for current script
-  export PATH=$PATH:/usr/local/go/bin
-  export GOPATH=$HOME/go
-  export PATH=$PATH:$GOPATH/bin
+    # Add Go to PATH immediately for current script
+    export PATH=$PATH:/usr/local/go/bin
+    export GOPATH=$HOME/go
+    export PATH=$PATH:$GOPATH/bin
 
-  # Persist Go paths for future shells
-  echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-  echo 'export GOPATH=$HOME/go' >> ~/.bashrc
-  echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+    # Persist Go paths for future shells
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+    echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+  fi
+elif [[ "$OS_NAME" == "Darwin" ]]; then
+  # macOS: assume Go installed via Homebrew
+  if ! command -v go &> /dev/null; then
+    echo "❌ Go not found. Install with Homebrew: brew install go"
+    exit 1
+  fi
 fi
 
 # Verify Go installation explicitly
-echo "✅ Go version: $(/usr/local/go/bin/go version)"
+echo "✅ Go version: $(go version)"
 
 ####################################
 # ⬆️ Auto-patch & build wasmd with flora prefixes
@@ -56,7 +96,8 @@ sed -i.bak -E \
   cmd/wasmd/main.go
 
 # Build & install
-/usr/local/go/bin/go install -mod=readonly -tags "netgo,ledger" \
+# Use the 'go' in PATH to support both Linux-installed and Homebrew Go
+go install -mod=readonly -tags "netgo,ledger" \
   -ldflags "\
     -X github.com/CosmWasm/wasmd/app.Bech32Prefix=flora \
     -X github.com/cosmos/cosmos-sdk/version.AppName=wasmd \
@@ -139,7 +180,7 @@ config="$deploy/config.toml"
 peer_list=()
 for host in "${RPC_SERVERS[@]}"; do
   id=$(curl -sSL "http://$host:${RPC_PORT}/status" | jq -r '.result.node_info.id')
-  peer_list+=("${id}@${host}:${P2P_PORT}")
+  peer_list+=("${id}@$host:${P2P_PORT}")
 done
 PEERS=$(IFS=,; echo "${peer_list[*]}")
 
