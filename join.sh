@@ -13,10 +13,16 @@ if ! command -v go &> /dev/null; then
   echo "=== Installing Go ==="
   curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
   sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+
+  # Add Go to PATH immediately for current script
+  export PATH=$PATH:/usr/local/go/bin
+  export GOPATH=$HOME/go
+  export PATH=$PATH:$GOPATH/bin
+
+  # Persist Go paths for future shells
   echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
   echo 'export GOPATH=$HOME/go' >> ~/.bashrc
   echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
-  source ~/.bashrc
 fi
 
 echo "✅ Go version: $(go version)"
