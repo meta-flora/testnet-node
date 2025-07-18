@@ -8,12 +8,12 @@ set -euo pipefail
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     echo "▶ Detected Windows (Git Bash/Cygwin); launching under WSL…"
-    # Ensure at least one WSL distribution is installed
+        # Ensure at least one WSL distribution is installed
     if ! wsl -l -q >/dev/null 2>&1 || [ -z "$(wsl -l -q)" ]; then
-      echo "❌ No WSL distributions installed."
-      echo "   Please install a distro first, e.g.:"
-      echo "     wsl --install -d Ubuntu"
-      exit 1
+      echo "▶ No WSL distributions installed; attempting to install Ubuntu..."
+      powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "wsl --install -d Ubuntu"
+      echo "▶ Ubuntu install initiated. Please restart your terminal after WSL setup completes, then re-run this script."
+      exit
     fi
     # Convert this script’s Windows path to WSL path
     WSL_SCRIPT=$(wsl wslpath -u "$PWD/$0" | tr -d '\r')
