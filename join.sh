@@ -2,6 +2,26 @@
 set -euo pipefail
 
 ####################################
+# 📦 Install dependencies (Go, jq, git, build-essential)
+####################################
+echo "=== Installing system dependencies ==="
+sudo apt update
+sudo apt install -y build-essential curl git jq
+
+# Install Go (version 1.21.6)
+if ! command -v go &> /dev/null; then
+  echo "=== Installing Go ==="
+  curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+  sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+  echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+  echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+  echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+  source ~/.bashrc
+fi
+
+echo "✅ Go version: $(go version)"
+
+####################################
 # ⬆️ Auto-patch & build wasmd with flora prefixes
 ####################################
 REPO="$HOME/src/github.com/CosmWasm/wasmd"
@@ -16,7 +36,7 @@ else
 fi
 git checkout tags/v0.60.0
 
-# Patch Bech32 prefixes (BSD & GNU sed compatible)
+# Patch Bech32 prefixes
 sed -i.bak -E 's|^([[:space:]]*const Bech32Prefix = ).*|\1"flora"|' app/app.go
 sed -i.bak -E \
   -e 's|^([[:space:]]*)SetBech32PrefixForAccount\(.*|\1SetBech32PrefixForAccount("flora","florapub")|' \
