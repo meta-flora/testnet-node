@@ -8,6 +8,13 @@ set -euo pipefail
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*)
     echo "▶ Detected Windows (Git Bash/Cygwin); launching under WSL…"
+    # Ensure at least one WSL distribution is installed
+    if ! wsl -l -q >/dev/null 2>&1 || [ -z "$(wsl -l -q)" ]; then
+      echo "❌ No WSL distributions installed."
+      echo "   Please install a distro first, e.g.:"
+      echo "     wsl --install -d Ubuntu"
+      exit 1
+    fi
     # Convert this script’s Windows path to WSL path
     WSL_SCRIPT=$(wsl wslpath -u "$PWD/$0" | tr -d '\r')
     # Pass all arguments
@@ -89,19 +96,14 @@ sed -i.bak -E \
   -e 's|^([[:space:]]*)SetBech32PrefixForConsensusNode\(.*|\1SetBech32PrefixForConsensusNode("floravalcons","floravalconspub")|' \
   cmd/wasmd/main.go
 
-# Build & install
+# Build & install using go in PATH
 GO_CMD=go
-if [[ "$OS_NAME" == "Linux" ]]; then
-  GO_CMD=go
-fi
-# Use go in PATH for both Linux and macOS
 $GO_CMD install -mod=readonly -tags "netgo,ledger" \
-  -ldflags "\
-    -X github.com/CosmWasm/wasmd/app.Bech32Prefix=flora \
-    -X github.com/cosmos/cosmos-sdk/version.AppName=wasmd \
-    -X github.com/cosmos/cosmos-sdk/version.Name=wasm \
-    -X github.com/cosmos/cosmos-sdk/version.Version=v0.60.0 \
-    -X github.com/cosmos/cosmos-sdk/version.Commit=$(git rev-parse HEAD)" \
+  -ldflags "-X github.com/CosmWasm/wasmd/app.Bech32Prefix=flora \
+-X github.com/cosmos/cosmos-sdk/version.AppName=wasmd \
+-X github.com/cosmos/cosmos-sdk/version.Name=wasm \
+-X github.com/cosmos/cosmos-sdk/version.Version=v0.60.0 \
+-X github.com/cosmos/cosmos-sdk/version.Commit=$(git rev-parse HEAD)" \
   ./cmd/wasmd
 popd
 echo "✅ Built $(wasmd version --long | head -n1)"
