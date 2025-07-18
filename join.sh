@@ -2,29 +2,24 @@
 set -euo pipefail
 
 ####################################
-# 🖥️ Windows check — if running under Git Bash/Cygwin on Windows,
+# 🖥️ Windows check — if running under Git Bash or Cygwin on Windows,
 # re-invoke this same script inside WSL and exit
 ####################################
-if command -v uname >/dev/null 2>&1; then
-  UNAME_OP=$(uname -o 2>/dev/null || true)
-  case "$UNAME_OP" in
-    Msys*|Cygwin*)
-      echo "▶ Detected Windows/Git Bash environment; re-launching under WSL…"
-      # Convert this script’s Windows-style path to a WSL path
-      WSL_SCRIPT=$(wsl wslpath -u "$PWD/$0" | tr -d '\r')
-      # Gather any arguments
-      ARGS=("$@")
-      # Build the WSL command
-      CMD="\"$WSL_SCRIPT\""
-      for a in "${ARGS[@]}"; do
-        CMD+=" \"$a\""
-      done
-      # Run under WSL bash
-      wsl bash -lc "$CMD"
-      exit
-      ;;
-  esac
-fi
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    echo "▶ Detected Windows (Git Bash/Cygwin); launching under WSL…"
+    # Convert this script’s Windows path to WSL path
+    WSL_SCRIPT=$(wsl wslpath -u "$PWD/$0" | tr -d '\r')
+    # Pass all arguments
+    ARGS=("$@")
+    CMD="\"$WSL_SCRIPT\""
+    for a in "${ARGS[@]}"; do
+      CMD+=" \"$a\""
+    done
+    wsl bash -lc "$CMD"
+    exit
+    ;;
+esac
 
 ####################################
 # 📦 Install dependencies (only on Linux)
@@ -51,25 +46,24 @@ if [[ "$OS_NAME" == "Linux" ]]; then
     sudo rm -rf /usr/local/go
     sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
 
-    # Add Go to PATH immediately for current script
+    # Add Go to PATH for this script
     export PATH=$PATH:/usr/local/go/bin
     export GOPATH=$HOME/go
     export PATH=$PATH:$GOPATH/bin
 
-    # Persist Go paths for future shells
+    # Persist Go paths
     echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
     echo 'export GOPATH=$HOME/go' >> ~/.bashrc
     echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
   fi
 elif [[ "$OS_NAME" == "Darwin" ]]; then
-  # macOS: assume Go installed via Homebrew
   if ! command -v go &> /dev/null; then
     echo "❌ Go not found. Install with Homebrew: brew install go"
     exit 1
   fi
 fi
 
-# Verify Go installation explicitly
+# Verify Go installation
 echo "✅ Go version: $(go version)"
 
 ####################################
@@ -96,8 +90,12 @@ sed -i.bak -E \
   cmd/wasmd/main.go
 
 # Build & install
-# Use the 'go' in PATH to support both Linux-installed and Homebrew Go
-go install -mod=readonly -tags "netgo,ledger" \
+GO_CMD=go
+if [[ "$OS_NAME" == "Linux" ]]; then
+  GO_CMD=go
+fi
+# Use go in PATH for both Linux and macOS
+$GO_CMD install -mod=readonly -tags "netgo,ledger" \
   -ldflags "\
     -X github.com/CosmWasm/wasmd/app.Bech32Prefix=flora \
     -X github.com/cosmos/cosmos-sdk/version.AppName=wasmd \
