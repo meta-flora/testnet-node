@@ -8,6 +8,10 @@ echo "=== Installing system dependencies ==="
 sudo apt update
 sudo apt install -y build-essential curl git jq
 
+# Clean up old Go installation first
+sudo rm -rf /usr/local/go
+rm -f "$HOME/go1.21.6.linux-amd64.tar.gz"
+
 # Install Go (version 1.21.6)
 if ! command -v go &> /dev/null; then
   echo "=== Installing Go ==="
@@ -25,7 +29,8 @@ if ! command -v go &> /dev/null; then
   echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
 fi
 
-echo "✅ Go version: $(go version)"
+# Verify Go installation explicitly
+echo "✅ Go version: $(/usr/local/go/bin/go version)"
 
 ####################################
 # ⬆️ Auto-patch & build wasmd with flora prefixes
@@ -51,7 +56,7 @@ sed -i.bak -E \
   cmd/wasmd/main.go
 
 # Build & install
-go install -mod=readonly -tags "netgo,ledger" \
+/usr/local/go/bin/go install -mod=readonly -tags "netgo,ledger" \
   -ldflags "\
     -X github.com/CosmWasm/wasmd/app.Bech32Prefix=flora \
     -X github.com/cosmos/cosmos-sdk/version.AppName=wasmd \
@@ -117,13 +122,11 @@ curl -sSL "$GENESIS_URL" \
   | jq -r '.result.genesis' \
   > "$deploy/genesis.json"
 
-# quick sanity: ensure chain_id is present
 if ! jq -e '.chain_id' "$deploy/genesis.json" >/dev/null; then
   echo "❌ error: genesis.json missing chain_id"
   exit 1
 fi
 
-# patch time_iota_ms
 tmp="$deploy/genesis.json.tmp"
 jq '.consensus_params.block.time_iota_ms="1000"' "$deploy/genesis.json" > "$tmp" && mv "$tmp" "$deploy/genesis.json"
 
