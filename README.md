@@ -20,6 +20,12 @@ curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh
   | bash -s -- <your-moniker>
 ```
 
+Run in background:
+```bash
+curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/join.sh \
+  | bash -s -- -bg <your-moniker>
+```
+
 > **MONIKER** (optional) — your node’s name (defaults to `floranode`)
 
 ## Join Network with Docker
