@@ -38,7 +38,15 @@ fi
 OS_NAME=$(uname -s)
 if [[ "$OS_NAME" == "Linux" ]]; then
   echo "=== Installing system dependencies ==="
-  sudo apt update && sudo apt install -y build-essential curl git jq
+  # Check if we're in a container (no sudo available) or on a regular system
+  if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo apt update && sudo apt install -y build-essential curl git jq
+  elif command -v apt-get >/dev/null 2>&1; then
+    # In container, dependencies should already be installed
+    echo "▶ Running in container; assuming dependencies are pre-installed"
+  else
+    echo "▶ Cannot install dependencies; please ensure build-essential, curl, git, and jq are available"
+  fi
 elif [[ "$OS_NAME" == "Darwin" ]]; then
   echo "▶ Detected macOS; skipping apt. Ensure deps via Homebrew: brew install git jq go"
 else
@@ -50,14 +58,34 @@ fi
 ####################################
 if [[ "$OS_NAME" == "Linux" && ! $(command -v go || true) ]]; then
   echo "=== Installing Go ==="
-  curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
-  sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
-  export PATH=$PATH:/usr/local/go/bin
-  export GOPATH=$HOME/go
-  export PATH=$PATH:$GOPATH/bin
-  echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
-  echo 'export GOPATH=$HOME/go' >> ~/.bashrc
-  echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+  # Check if we can write to /usr/local (requires root)
+  if [ -w /usr/local ] || (command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null); then
+    curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+      sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+    else
+      rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.6.linux-amd64.tar.gz
+    fi
+    export PATH=$PATH:/usr/local/go/bin
+    export GOPATH=$HOME/go
+    export PATH=$PATH:$GOPATH/bin
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
+    echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+    echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+  else
+    # Install to user directory in container
+    echo "▶ Installing Go to user directory (container environment)"
+    curl -OL https://go.dev/dl/go1.21.6.linux-amd64.tar.gz
+    rm -rf "$HOME/go-install" && mkdir -p "$HOME/go-install"
+    tar -C "$HOME/go-install" -xzf go1.21.6.linux-amd64.tar.gz
+    export PATH=$PATH:"$HOME/go-install/go/bin"
+    export GOPATH=$HOME/go
+    export PATH=$PATH:$GOPATH/bin
+    echo 'export PATH=$PATH:'"$HOME"'/go-install/go/bin' >> ~/.bashrc
+    echo 'export GOPATH=$HOME/go' >> ~/.bashrc
+    echo 'export PATH=$PATH:$GOPATH/bin' >> ~/.bashrc
+  fi
+  rm -f go1.21.6.linux-amd64.tar.gz
 elif [[ "$OS_NAME" == "Darwin" && ! $(command -v go || true) ]]; then
   echo "❌ Go not found. Install with Homebrew: brew install go"
   exit 1
@@ -181,9 +209,13 @@ chmod +x "$WRAPPER"
 if [ -d /usr/local/bin ]; then
   if [ -w /usr/local/bin ]; then
     ln -sf "$WRAPPER" /usr/local/bin/florachain
-  else
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
     sudo ln -sf "$WRAPPER" /usr/local/bin/florachain
+  else
+    echo "▶ Cannot create symlink in /usr/local/bin; using local wrapper only"
   fi
+else
+  echo "▶ /usr/local/bin not available; using local wrapper only"
 fi
 
 echo "✅ CLI helper installed at $WRAPPER"

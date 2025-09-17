@@ -6,10 +6,10 @@ FROM --platform=linux/amd64 ubuntu:22.04
 # Disable interactive prompts
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install curl, bash, and sudo for fetching and running the join script
+# Install all required dependencies for building wasmd
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-         curl bash ca-certificates sudo \
+         curl bash ca-certificates sudo git build-essential jq \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
