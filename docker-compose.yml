@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  flora-peer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: flora-peer-local
+    platform: linux/amd64
+    ports:
+      - "26656:26656"
+      - "26657:26657"
+      - "1317:1317"
+      - "9090:9090"
+    environment:
+      - MONIKER=flora-peer-local
+    volumes:
+      - flora-data:/root/.florachain
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    networks:
+      - flora-network
+
+volumes:
+  flora-data:
+    driver: local
+
+networks:
+  flora-network:
+    driver: bridge
