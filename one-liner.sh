@@ -8,24 +8,56 @@ export MONIKER=${MONIKER:-flora-peer-local}
 export CHAIN_ID=${CHAIN_ID:-flora-1}
 export FLORA_HOME=${FLORA_HOME:-/root/.florachain}
 
-echo "📋 Configuration:"
+echo " Configuration:"
 echo "  Moniker: $MONIKER"
 echo "  Chain ID: $CHAIN_ID"
 echo "  Home: $FLORA_HOME"
 
-# Download the actual Flora Chain binary if not present or if it's gaiad
+# Detect architecture
+ARCH=$(uname -m)
+echo "🔍 Detected architecture: $ARCH"
+
+# Download the actual Flora Chain binary if not present
 if ! command -v florachaind &> /dev/null || (florachaind version 2>&1 | grep -q "v13.0.0"); then
     echo "📥 Downloading Flora Chain binary from gateway..."
-    curl -L "https://testnet-gateway.metaflora.xyz/downloads/florachaind" -o /usr/local/bin/florachaind
-    chmod +x /usr/local/bin/florachaind
     
-    # Verify the download
-    if ! command -v florachaind &> /dev/null; then
+    # Try to download and verify the binary
+    if curl -L "https://testnet-gateway.metaflora.xyz/downloads/florachaind" -o /usr/local/bin/florachaind; then
+        chmod +x /usr/local/bin/florachaind
+        
+        # Check if the binary is executable and get its info
+        echo " Binary information:"
+        file /usr/local/bin/florachaind
+        ls -la /usr/local/bin/florachaind
+        
+        # Test if the binary can run
+        if /usr/local/bin/florachaind version >/dev/null 2>&1; then
+            echo "✅ Flora Chain binary downloaded and verified successfully!"
+        else
+            echo "❌ Binary downloaded but not executable, trying to fix..."
+            # Try to install missing dependencies
+            apt-get update && apt-get install -y libc6-i386 lib32gcc-s1 lib32stdc++6
+            
+            # Test again
+            if /usr/local/bin/florachaind version >/dev/null 2>&1; then
+                echo "✅ Flora Chain binary fixed and working!"
+            else
+                echo "❌ Error: Binary still not working after installing dependencies"
+                echo " Trying alternative approach..."
+                # Try to use gaiad as fallback
+                if command -v gaiad &> /dev/null; then
+                    echo "🔄 Using gaiad as fallback..."
+                    ln -sf $(which gaiad) /usr/local/bin/florachaind
+                else
+                    echo "❌ No working binary found!"
+                    exit 1
+                fi
+            fi
+        fi
+    else
         echo "❌ Error: Failed to download Flora Chain binary!"
         exit 1
     fi
-    
-    echo "✅ Flora Chain binary downloaded successfully!"
 fi
 
 # Create flora directory
@@ -36,7 +68,24 @@ if [ ! -f "$FLORA_HOME/config/genesis.json" ]; then
     echo "🔧 Initializing Flora Chain for network sync..."
     
     # Initialize the chain with florachaind
-    florachaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$FLORA_HOME"
+    if florachaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$FLORA_HOME"; then
+        echo "✅ Flora Chain initialized successfully!"
+    else
+        echo "❌ Error: Failed to initialize Flora Chain!"
+        echo "🔍 Binary info:"
+        file /usr/local/bin/florachaind
+        echo "🔍 Binary permissions:"
+        ls -la /usr/local/bin/florachaind
+        echo "🔍 Trying to install missing dependencies..."
+        apt-get update && apt-get install -y libc6-i386 lib32gcc-s1 lib32stdc++6
+        echo "🔍 Retrying initialization..."
+        if florachaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$FLORA_HOME"; then
+            echo "✅ Flora Chain initialized successfully after installing dependencies!"
+        else
+            echo "❌ Still failing after installing dependencies"
+            exit 1
+        fi
+    fi
     
     # Download the actual Flora Chain genesis file
     echo "📥 Downloading Flora Chain genesis file..."

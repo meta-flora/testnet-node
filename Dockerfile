@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -30,8 +30,6 @@ ENV PATH="$HOME/go/bin:$PATH"
 
 # Create app directory
 WORKDIR /app
-
-# Flora Chain binary will be downloaded at runtime from the gateway
 
 # Copy the one-liner script
 COPY one-liner.sh /app/install.sh

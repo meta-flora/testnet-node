@@ -4,7 +4,19 @@ A complete Docker setup for running a Flora Chain peer node on the `flora-1` tes
 
 ## Quick Start
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Docker Hub (Recommended - No Build Required)
+
+```bash
+# Pull and run the pre-built image from Docker Hub
+docker run -d --name metaflora-peer \
+  -p 26656:26656 -p 26657:26657 -p 1317:1317 -p 9090:9090 \
+  ggingerbreadman/metaflora-cosmos-testnet-peer:latest
+
+# View logs
+docker logs -f metaflora-peer
+```
+
+### Option 2: Docker Compose
 
 ```bash
 # Clone the repository
@@ -18,14 +30,14 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-### Option 2: One-liner Script
+### Option 3: One-liner Script
 
 ```bash
 # Run directly with curl
 curl -sSL https://raw.githubusercontent.com/meta-flora/testnet-node/main/setup.sh | bash
 ```
 
-### Option 3: Manual Docker
+### Option 4: Manual Docker Build
 
 ```bash
 # Build and run
@@ -74,6 +86,13 @@ curl -s http://localhost:26657/net_info | jq '.result.n_peers'
 curl -s http://localhost:26657/status | jq '.result.sync_info.latest_block_height'
 ```
 
+## Docker Hub Image
+
+The pre-built image is available on Docker Hub:
+- **Image**: `ggingerbreadman/metaflora-cosmos-testnet-peer:latest`
+- **Tags**: `latest`, `v1.0.0`
+- **Platform**: `linux/amd64` (works on all platforms via emulation)
+
 ## Files
 
 - `Dockerfile` - Container definition with Ubuntu 22.04 and dependencies
@@ -100,7 +119,7 @@ If the binary download fails, check that the gateway endpoints are accessible:
 ### Sync Issues
 If the node isn't syncing, check the logs:
 ```bash
-docker-compose logs -f
+docker logs -f metaflora-peer
 ```
 
 ## Network Information
@@ -111,4 +130,4 @@ docker-compose logs -f
 
 ---
 
-Let It Grow! 🌱
+Let It Grow! ��
