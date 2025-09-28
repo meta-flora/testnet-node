@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  flora-peer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flora-peer
+    restart: "no"
+    ports:
+      - "26656:26656"  # P2P port
+      - "26657:26657"  # RPC port
+      - "9090:9090"    # gRPC port
+      - "1317:1317"    # API port
+    volumes:
+      - flora-data:/root/.florachain
+    environment:
+      - MONIKER=${MONIKER:-flora-peer-docker}
+      - FLORA_HOME=/root/.florachain
+      - CHAIN_ID=flora-1
+      - MAIN_NODE_ID=0fdd195eba262dbb1cf1e33f85ff5990722d93c6
+      - MAIN_NODE_ADDRESS=testnet-gateway.metaflora.xyz:26656
+      - RPC_ENDPOINT=https://testnet-gateway.metaflora.xyz:26657
+      - GRPC_ENDPOINT=https://testnet-gateway.metaflora.xyz:9090
+    networks:
+      - flora-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 300s  # Give 5 minutes for binary download and startup
+    labels:
+      - "com.flora.service=peer-node"
+      - "com.flora.chain=flora-1"
+      - "com.flora.network=testnet"
+      - "com.flora.feature=production-gateway"
+      - "com.flora.gateway=testnet-gateway.metaflora.xyz"
+
+volumes:
+  flora-data:
+    driver: local
+
+networks:
+  flora-network:
+    driver: bridge
